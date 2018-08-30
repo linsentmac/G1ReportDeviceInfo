@@ -28,13 +28,16 @@ public class AppManager {
         getCurrentApplicationInfo();
     }
 
+    private CurrentAppTimerTask mAppTimerTask;
+    private Timer mAppTimer;
+
     /**
      * get current app info
      */
     private void getCurrentApplicationInfo() {
         manager = (ActivityManager) mContext.getSystemService(Context.ACTIVITY_SERVICE);
-        CurrentAppTimerTask mAppTimerTask = new CurrentAppTimerTask();
-        Timer mAppTimer = new Timer();
+        mAppTimerTask = new CurrentAppTimerTask();
+        mAppTimer = new Timer();
         mAppTimer.schedule(mAppTimerTask, 0, 3000);
     }
 
@@ -69,4 +72,18 @@ public class AppManager {
         }
         return name;
     }
+
+    public void releaseAppTask(){
+        if(mAppTimerTask != null){
+            mAppTimerTask.cancel();
+            mAppTimerTask = null;
+        }
+
+        if(mAppTimer != null){
+            mAppTimer.cancel();
+            mAppTimer.purge();
+            mAppTimer = null;
+        }
+    }
+
 }

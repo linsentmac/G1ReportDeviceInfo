@@ -22,6 +22,7 @@ import cn.lenovo.reportdeviceinfo.network.NetState;
 
 public class DeviceInfo {
 
+    private static final String TAG = "RDI-DeviceInfo";
     private static DeviceInfo mInstance;
 
     private LocationManager locationManager;
@@ -67,7 +68,7 @@ public class DeviceInfo {
             }
             bReader.close();
             serialNum = sb.toString();
-            Log.d("tmacversion", "serialN = " + serialNum);
+            Log.d(TAG, "serialN = " + serialNum);
         }catch (Exception e){
             e.printStackTrace();
         }

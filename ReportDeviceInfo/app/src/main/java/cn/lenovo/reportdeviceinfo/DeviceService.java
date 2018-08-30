@@ -23,6 +23,8 @@ import cn.lenovo.reportdeviceinfo.network.NetState;
 import okhttp3.Request;
 
 public class DeviceService extends Service {
+
+    private static final String TAG = "RDI-DeviceInfo";
     public static String MSG_CMD = "MSG_CMD";
     public final static int MSG_POWER_ON = 1;
     public final static int MSG_OPEN_APP = 2;
@@ -32,17 +34,18 @@ public class DeviceService extends Service {
     private DeviceStatus mDeviceStatus;
     private LocationService locationService;
     private MyHandler mHandler;
+    private AppManager appManager;
 
     @Override
     public void onCreate() {
         super.onCreate();
-        Log.e("chao", "cn.lenovo.reportdeviceinfo.DeviceService onCreate");
+        Log.e(TAG, "cn.lenovo.reportdeviceinfo.DeviceService onCreate");
 
         okHttpClientUtil = OkHttpClientUtil.getInstance();
         mDeviceStatus = DeviceStatus.getInstance(this);
         //在AppManager中加入TimerTask轮询
         mHandler = new MyHandler();
-        new AppManager(this, mHandler);
+        appManager = new AppManager(this, mHandler);
 
         initLocation();
     }
@@ -77,7 +80,7 @@ public class DeviceService extends Service {
                 double latitude = location.getLatitude();// 纬度
                 double longitude = location.getLongitude();// 经度
                 getLocation(location);
-                Log.d("chao", "BD LocationListener, latitude =  " + latitude + ", longitude = " + longitude);
+                Log.d(TAG, "BD LocationListener, latitude =  " + latitude + ", longitude = " + longitude);
                 //定位成功，上传信息
                 reportPowerOnInfo(longitude + "," + latitude);
                 locationService.stop();
@@ -123,7 +126,7 @@ public class DeviceService extends Service {
         sb.append(location.getDirection());// 方向
         sb.append("\nlocationdescribe: ");
         sb.append(location.getLocationDescribe());// 位置语义化信息
-        Log.d("chao", "BD Location"  + sb.toString());
+        Log.d(TAG, "BD Location"  + sb.toString());
 
     }
 
@@ -152,12 +155,12 @@ public class DeviceService extends Service {
     //上报开机与定位信息
     private void reportPowerOnInfo(final String Coordinate) {
         if (mDeviceStatus.isReportPowerOn()) return;
-        Log.d("chao", "reportPowerOnInfo start");
+        Log.d(TAG, "reportPowerOnInfo start");
 
         okHttpClientUtil._postAsyn(UrlConstant.POWER_ON, new OkHttpClientUtil.ResultCallback<String>() {
             @Override
             public void onError(Request request, final Exception e) {
-                Log.d("chao", "reportPowerOnInfo onError : " + e.getMessage());
+                Log.d(TAG, "reportPowerOnInfo onError : " + e.getMessage());
                 Message message = new Message();
                 message.what = DeviceService.MSG_DELAY_REPORT_POWER_ON;
                 message.obj = Coordinate;
@@ -166,7 +169,7 @@ public class DeviceService extends Service {
 
             @Override
             public void onResponse(final String response) {
-                Log.d("chao", "reportPowerOnInfo onResponse : " + response);
+                Log.d(TAG, "reportPowerOnInfo onResponse : " + response);
                 mDeviceStatus.setReportPowerOn(true);
             }
         }, mDeviceStatus.toPowerOnStatus(Coordinate));
@@ -174,7 +177,7 @@ public class DeviceService extends Service {
 
     //TODO 上报关机信息
     private void reportPowerOffInfo() {
-        Log.d("chao", "reportPowerOffInfo start");
+        Log.d(TAG, "reportPowerOffInfo start");
         JSONObject jsonObject = new JSONObject();
         try {
             jsonObject.put("deviceSN", mDeviceStatus.getDeviceInfo().getSerial());
@@ -187,19 +190,19 @@ public class DeviceService extends Service {
         okHttpClientUtil._postAsyn(UrlConstant.POWER_OFF, new OkHttpClientUtil.ResultCallback<String>() {
             @Override
             public void onError(Request request, final Exception e) {
-                Log.d("chao", "reportPowerOffInfo onError : " + e.getMessage());
+                Log.d(TAG, "reportPowerOffInfo onError : " + e.getMessage());
             }
 
             @Override
             public void onResponse(final String response) {
-                Log.d("chao", "reportPowerOffInfo onResponse : " + response);
+                Log.d(TAG, "reportPowerOffInfo onResponse : " + response);
             }
         }, jsonObject.toString());
     }
 
     //上报打开App信息
     private void reportOpenApp(String packageName) {
-        Log.d("chao", "reportOpenApp start");
+        Log.d(TAG, "reportOpenApp start");
         JSONObject jsonObject = new JSONObject();
         try {
             jsonObject.put("deviceSN", mDeviceStatus.getDeviceInfo().getSerial());
@@ -212,19 +215,19 @@ public class DeviceService extends Service {
         okHttpClientUtil._postAsyn(UrlConstant.OPEN_APP, new OkHttpClientUtil.ResultCallback<String>() {
             @Override
             public void onError(Request request, final Exception e) {
-                Log.d("chao", "reportOpenApp onError : " + e.getMessage());
+                Log.d(TAG, "reportOpenApp onError : " + e.getMessage());
             }
 
             @Override
             public void onResponse(final String response) {
-                Log.d("chao", "reportOpenApp onResponse : " + response);
+                Log.d(TAG, "reportOpenApp onResponse : " + response);
             }
         }, jsonObject.toString());
     }
 
     //TODO 上报错误信息
     private void reportErrorLog(String error) {
-        Log.d("chao", "reportErrorLog start");
+        Log.d(TAG, "reportErrorLog start");
         JSONObject jsonObject = new JSONObject();
         try {
             jsonObject.put("deviceSN", mDeviceStatus.getDeviceInfo().getSerial());
@@ -237,14 +240,26 @@ public class DeviceService extends Service {
         okHttpClientUtil._postAsyn(UrlConstant.ERROR_LOG, new OkHttpClientUtil.ResultCallback<String>() {
             @Override
             public void onError(Request request, final Exception e) {
-                Log.d("chao", "reportErrorLog onError : " + e.getMessage());
+                Log.d(TAG, "reportErrorLog onError : " + e.getMessage());
             }
 
             @Override
             public void onResponse(final String response) {
-                Log.d("chao", "reportErrorLog onResponse : " + response);
+                Log.d(TAG, "reportErrorLog onResponse : " + response);
             }
         }, jsonObject.toString());
     }
 
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if(appManager != null){
+            appManager.releaseAppTask();
+        }
+        if(locationService != null){
+            locationService.stop();
+            locationService.unregisterListener(mListener);
+        }
+
+    }
 }
